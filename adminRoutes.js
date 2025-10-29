@@ -1,0 +1,104 @@
+const express = require('express');
+const router = express.Router();
+const db = require('./db'); // Our database connection
+const auth = require('./authMiddleware'); // Our auth protection
+
+// --- Admin-Only Middleware ---
+// This middleware checks if the user is an 'Admin'
+// We will apply this to all routes in this file.
+const adminOnly = (req, res, next) => {
+    if (req.user.role !== 'Admin') {
+        return res.status(403).json({ message: 'Access denied. Admin role required.' });
+    }
+    next();
+};
+
+// Apply auth and admin-only middleware to all routes in this file
+router.use(auth);
+router.use(adminOnly);
+
+// === API ENDPOINT: Get All Users (SRS 4.3) ===
+router.get('/users', async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT user_id, username, email, role, created_at FROM users ORDER BY user_id ASC");
+        res.json({ users: rows });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error");
+    }
+});
+
+// === API ENDPOINT: Update User Role (SRS 4.3) ===
+router.put('/users/:id/role', async (req, res) => {
+    try {
+        const { id } = req.params; // The user_id to update
+        const { role } = req.body; // The new role ('Admin', 'Editor', 'Viewer')
+
+        // Validate the role
+        if (!['Admin', 'Editor', 'Viewer'].includes(role)) {
+            return res.status(400).json({ message: 'Invalid role specified.' });
+        }
+
+        // Prevent admin from demoting themselves by accident (optional but good practice)
+        if (Number(id) === req.user.id && role !== 'Admin') {
+            return res.status(400).json({ message: "Admin cannot demote themselves." });
+        }
+
+        const update = await db.query(
+            "UPDATE users SET role = $1 WHERE user_id = $2 RETURNING user_id, username, role",
+            [role, id]
+        );
+
+        if (update.rows.length === 0) {
+            return res.status(404).json({ message: "User not found." });
+        }
+        
+        // Log this action (SRS 4.6)
+        await db.query(
+            "INSERT INTO audit_logs (user_id, action_type, details) VALUES ($1, 'ADMIN_UPDATE_ROLE', $2)",
+            [req.user.id, `Set user ${update.rows[0].username} (ID: ${id}) to role: ${role}`]
+        );
+
+        res.json({ message: 'User role updated successfully.', user: update.rows[0] });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error");
+    }
+});
+
+// === API ENDPOINT: Delete User (SRS 4.3) ===
+router.delete('/users/:id', async (req, res) => {
+    try {
+        const { id } = req.params; // The user_id to delete
+
+        // Prevent admin from deleting themselves
+        if (Number(id) === req.user.id) {
+            return res.status(400).json({ message: "Cannot delete your own admin account." });
+        }
+
+        const deleteOp = await db.query("DELETE FROM users WHERE user_id = $1 RETURNING username", [id]);
+
+        if (deleteOp.rows.length === 0) {
+            return res.status(404).json({ message: "User not found." });
+        }
+        
+        // Log this action (SRS 4.6)
+        await db.query(
+            "INSERT INTO audit_logs (user_id, action_type, details) VALUES ($1, 'ADMIN_DELETE_USER', $2)",
+            [req.user.id, `Deleted user ${deleteOp.rows[0].username} (ID: ${id})`]
+        );
+
+        res.json({ message: 'User deleted successfully.' });
+
+    } catch (err) {
+        console.error(err.message);
+        // Handle constraint violation (e.g., if user still owns documents)
+        if (err.code === '23503') { // Foreign key violation
+            return res.status(400).json({ message: 'Cannot delete user. They still own documents. Please reassign documents first.'});
+        }
+        res.status(500).send("Server error");
+    }
+});
+
+module.exports = router;
