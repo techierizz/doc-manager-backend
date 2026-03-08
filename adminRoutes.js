@@ -101,4 +101,31 @@ router.delete('/users/:id', async (req, res) => {
     }
 });
 
+router.get('/audit-logs', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                l.log_id, 
+                u.username, 
+                l.action_type, 
+                l.details, 
+                l.timestamp,
+                d.document_id,
+                v.file_name as target_file
+            FROM audit_logs l
+            LEFT JOIN users u ON l.user_id = u.user_id
+            LEFT JOIN documents d ON l.target_document_id = d.document_id
+            LEFT JOIN document_versions v ON d.current_version_id = v.version_id
+            ORDER BY l.timestamp DESC 
+            LIMIT 100
+        `;
+        const { rows } = await db.query(query);
+        res.json({ logs: rows });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error fetching logs");
+    }
+});
+
+
 module.exports = router;
