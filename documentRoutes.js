@@ -146,8 +146,11 @@ router.get('/search', auth, async (req, res) => {
 
         // 4. Tags
         if (tags) {
-            queryParams.push(`%${tags}%`);
-            queryClauses.push(`v.tags ILIKE $${queryParams.length}`);
+            const tagList = tags.split(',').map(t => t.trim());
+            tagList.forEach(tag => {
+                queryParams.push(`%${tag}%`);
+                queryClauses.push(`v.tags ILIKE $${queryParams.length}`);
+            });
         }
         
         // 5. Date Range
@@ -528,4 +531,5 @@ router.delete('/:id/permissions/:userId', auth, async (req, res) => {
 
 
 module.exports = router;
+
 
