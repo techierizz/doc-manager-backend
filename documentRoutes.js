@@ -240,6 +240,7 @@ router.get('/:id/versions', auth, async (req, res) => {
                 v.version_number,
                 v.file_name,
                 v.created_at,
+                v.upload_comment,
                 u.username AS uploader,
                 d.current_version_id
             FROM 
@@ -527,3 +528,4 @@ router.delete('/:id/permissions/:userId', auth, async (req, res) => {
 
 
 module.exports = router;
+
