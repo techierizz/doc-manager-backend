@@ -529,7 +529,47 @@ router.delete('/:id/permissions/:userId', auth, async (req, res) => {
     }
 });
 
+router.patch('/:id/request-approval', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Set status to Pending and log it
+        await db.query(
+            "UPDATE documents SET status = 'Pending Approval' WHERE document_id = $1 AND owner_id = $2",
+            [id, req.user.id]
+        );
+        
+        await db.query(
+            "INSERT INTO audit_logs (user_id, action_type, details, target_document_id) VALUES ($1, 'REQUEST_APPROVAL', 'User requested document approval', $2)",
+            [req.user.id, id]
+        );
+
+        res.json({ message: "Approval requested successfully." });
+    } catch (err) {
+        res.status(500).send("Server error");
+    }
+});
+
+router.patch('/:id/approve', auth, adminOnly, async (req, res) => {
+    const { status, comment } = req.body; // 'Approved' or 'Rejected'
+    try {
+        await db.query(
+            "UPDATE documents SET status = $1 WHERE document_id = $2",
+            [status, req.params.id]
+        );
+        
+        await db.query(
+            "INSERT INTO audit_logs (user_id, action_type, details, target_document_id) VALUES ($1, 'DECISION', $2, $3)",
+            [req.user.id, `${status}: ${comment}`, req.params.id]
+        );
+
+        res.json({ message: `Document ${status}` });
+    } catch (err) {
+        res.status(500).send("Server error");
+    }
+});
+
 
 module.exports = router;
+
 
 
