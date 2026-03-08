@@ -14,6 +14,24 @@ router.post('/register', async (req, res) => {
     try {
         const { username, email, password } = req.body;
 
+        if (!username || !email || !password) {
+            return res.status(400).json({ message: "All fields are required." });
+        }
+
+        const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: "Please enter a valid email address." });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({ message: "Password must be at least 8 characters long." });
+        }
+
+        if (username.length < 3 || username.includes(' ')) {
+            return res.status(400).json({ message: "Username must be 3-20 characters and contain no spaces." });
+        }
+        ////////////////
+
         // 1. Check if user already exists
         const userExists = await db.query(
             "SELECT * FROM users WHERE email = $1 OR username = $2",
@@ -90,5 +108,6 @@ router.post('/login', async (req, res) => {
         res.status(500).send("Server error");
     }
 });
+
 
 module.exports = router;
