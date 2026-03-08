@@ -483,4 +483,47 @@ router.post('/:id/share', auth, async (req, res) => {
     }
 });
 
+router.delete('/:id/permissions/:userId', auth, async (req, res) => {
+    try {
+        const { id: documentId, userId } = req.params;
+        const requesterId = req.user.id;
+        const requesterRole = req.user.role;
+
+        // Check if requester is owner or Admin
+        const doc = await db.query("SELECT owner_id FROM documents WHERE document_id = $1", [documentId]);
+        
+        if (doc.rows.length === 0) {
+            return res.status(404).json({ message: "Document not found." });
+        }
+
+        const isOwner = (doc.rows[0].owner_id === requesterId);
+        const isAdmin = (requesterRole === 'Admin');
+
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({ message: "Access denied. Only the owner or an Admin can remove permissions." });
+        }
+
+        const result = await db.query(
+            "DELETE FROM document_permissions WHERE document_id = $1 AND user_id = $2 RETURNING *",
+            [documentId, userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Permission record not found." });
+        }
+
+        // Log the action
+        await db.query(
+            "INSERT INTO audit_logs (user_id, action_type, details, target_document_id) VALUES ($1, 'REVOKE_ACCESS', $2, $3)",
+            [requesterId, `Revoked access for user ID ${userId}`, documentId]
+        );
+
+        res.json({ message: "Access revoked successfully." });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error");
+    }
+});
+
+
 module.exports = router;
