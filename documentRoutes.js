@@ -98,7 +98,9 @@ router.get('/search', auth, async (req, res) => {
         // --- Base Query ---
         // Selects all current document versions that the user has access to
         let baseQuery = `
-            SELECT 
+            SELECT DISTINCT
+                d.document_id,        
+                d.status,
                 v.file_name, 
                 v.file_type, 
                 v.created_at AS last_modified, 
@@ -615,6 +617,7 @@ router.get('/:id', auth, async (req, res) => {
 
 
 module.exports = router;
+
 
 
 
