@@ -2,16 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('./db'); // Our database connection
 const auth = require('./authMiddleware'); // Our auth protection
+const { adminOnly } = require('../middleware/adminMiddleware');
 
-// --- Admin-Only Middleware ---
-// This middleware checks if the user is an 'Admin'
-// We will apply this to all routes in this file.
-const adminOnly = (req, res, next) => {
-    if (req.user.role !== 'Admin') {
-        return res.status(403).json({ message: 'Access denied. Admin role required.' });
-    }
-    next();
-};
 
 // Apply auth and admin-only middleware to all routes in this file
 router.use(auth);
@@ -152,3 +144,4 @@ router.get('/pending-approvals', async (req, res) => {
 
 
 module.exports = router;
+
