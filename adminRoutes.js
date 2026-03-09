@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('./db'); // Our database connection
 const auth = require('./authMiddleware'); // Our auth protection
-const { adminOnly } = require('../middleware/adminMiddleware');
+const { adminOnly } = require('./middleware/adminMiddleware');
 
 
 // Apply auth and admin-only middleware to all routes in this file
@@ -144,4 +144,5 @@ router.get('/pending-approvals', async (req, res) => {
 
 
 module.exports = router;
+
 
