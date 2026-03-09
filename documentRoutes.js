@@ -4,14 +4,7 @@ const multer = require('multer'); // For handling file uploads
 const path = require('path'); // Node.js utility for handling file paths
 const db = require('./db'); // Our database connection
 const auth = require('./authMiddleware'); // Our auth protection
-
-const adminOnly = (req, res, next) => {
-    if (req.user && req.user.role === 'Admin') {
-        next();
-    } else {
-        res.status(403).json({ message: "Access denied. Admin rights required." });
-    }
-};
+const { adminOnly } = require('../middleware/adminMiddleware');
 
 // --- Multer Configuration ---
 // This tells Multer where to store files and how to name them
@@ -625,6 +618,7 @@ router.get('/:id', auth, async (req, res) => {
 
 
 module.exports = router;
+
 
 
 
