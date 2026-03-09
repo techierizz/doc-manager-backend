@@ -7,7 +7,6 @@ const auth = require('./authMiddleware'); // Our auth protection
 const { adminOnly } = require('./middleware/adminMiddleware');
 
 // --- Multer Configuration ---
-// This tells Multer where to store files and how to name them
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, 'uploads/'); // Store files in the 'uploads/' directory
@@ -618,6 +617,7 @@ router.get('/:id', auth, async (req, res) => {
 
 
 module.exports = router;
+
 
 
 
