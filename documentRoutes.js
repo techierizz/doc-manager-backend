@@ -568,8 +568,54 @@ router.patch('/:id/approve', auth, adminOnly, async (req, res) => {
     }
 });
 
+router.get('/:id', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // Query to get document status and owner
+        const docQuery = await db.query(
+            `SELECT document_id, owner_id, status FROM documents WHERE document_id = $1`,
+            [id]
+        );
+
+        if (docQuery.rows.length === 0) {
+            return res.status(404).json({ message: "Document not found" });
+        }
+
+        const doc = docQuery.rows[0];
+
+        // Security Check: Is the user the owner or an Admin?
+        // (Alternatively, check document_permissions table if you want viewers to see status too)
+        const isOwner = (doc.owner_id === userId);
+        const isAdmin = (req.user.role === 'Admin');
+
+        // Check if shared with user if they aren't the owner/admin
+        if (!isOwner && !isAdmin) {
+            const permissionCheck = await db.query(
+                "SELECT 1 FROM document_permissions WHERE document_id = $1 AND user_id = $2",
+                [id, userId]
+            );
+            if (permissionCheck.rows.length === 0) {
+                return res.status(403).json({ message: "Access denied" });
+            }
+        }
+
+        res.json({
+            document_id: doc.document_id,
+            status: doc.status, // e.g., 'Draft', 'Pending Approval', 'Approved'
+            isOwner: isOwner
+        });
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error");
+    }
+});
+
 
 module.exports = router;
+
 
 
 
