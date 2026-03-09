@@ -127,5 +127,29 @@ router.get('/audit-logs', async (req, res) => {
     }
 });
 
+router.get('/pending-approvals', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                d.document_id, 
+                v.file_name, 
+                u.username AS owner, 
+                d.status, 
+                d.created_at
+            FROM documents d
+            JOIN document_versions v ON d.current_version_id = v.version_id
+            JOIN users u ON d.owner_id = u.user_id
+            WHERE d.status = 'Pending Approval'
+            ORDER BY d.created_at ASC
+        `;
+        const { rows } = await db.query(query);
+        res.json({ pending: rows });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error");
+    }
+});
+
 
 module.exports = router;
+
